@@ -1,0 +1,193 @@
+SELECT 
+location,date,total_cases,new_cases,total_deaths,population,
+ FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` 
+ order by 1,2
+
+--finding deathpercentage in us
+ SELECT 
+location,date,total_cases,total_deaths,(total_cases/total_deaths)*100 as deathpercentage
+ FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` 
+ where location like "%State%" 
+ order by 1,2
+desc
+
+--finding cases  in us according to pulation 
+ SELECT 
+location,date,total_cases,population,(total_cases/population)*100 as cases_population
+ FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` 
+ where location like "%State%" 
+ order by 1,2
+  desc 
+
+--finding cases Per_pop_inf
+ SELECT 
+location,max(total_cases),population,MAX(total_cases/population)*100 as Per_pop_inf
+ FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` 
+ where location like "%State%" 
+group by  location, population
+ order by  Per_pop_inf desc
+
+
+--finding cases Per_pop_inf world
+ SELECT 
+location,max(total_cases),population,MAX(total_cases/population)*100 as Per_pop_inf
+ FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` 
+  
+group by  location, population
+ order by  Per_pop_inf desc
+
+--finding country with highest death count per population
+ SELECT 
+location,max(cast(total_deaths as int )) as  total_death_count
+ FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` 
+  where continent is not null
+group by  location, population
+ order by  total_death_count desc
+
+
+--finding continent with highest death count per population
+ SELECT
+continent,max(cast(total_deaths as int )) as  total_death_count
+ FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` 
+  where continent is not null
+group by  continent
+ order by  total_death_count desc
+
+
+
+
+--finding continent with highest death count per population
+ SELECT
+continent,max(cast(total_deaths as int )) as  total_death_count
+ FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` 
+  where continent is not null
+group by  continent
+ order by  total_death_count desc
+
+
+-- world data insight about covid 
+SELECT
+  date,
+  SUM(new_cases),
+  SUM(CAST(new_deaths AS INT64)) AS total_new_deaths,
+  (CASE
+    WHEN SUM(new_cases) = 0 THEN NULL
+    ELSE (SUM(CAST(new_deaths AS INT64)) / SUM(new_cases)) * 100
+  END) AS death_percentage
+FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths`
+WHERE continent IS NOT NULL
+GROUP BY date
+ORDER BY death_percentage desc;
+
+
+
+
+
+
+-- total population vacination
+SELECT
+  
+ dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths`  as dea 
+join `my-first-data-analytics-98275.portfolio_covid_19.covid_vaccinations` as vac 
+on dea.location = vac.location
+and dea.date = vac.date
+where dea.continent is not null and 
+ vac.new_vaccinations is not null
+ORDER BY 1,2,3;
+
+
+
+-- total population vaccination
+SELECT
+  dea.continent,
+  dea.location,
+  dea.date,
+  dea.population,
+  vac.new_vaccinations,
+  SUM(CAST(vac.new_vaccinations AS INT64)) OVER (PARTITION BY dea.location ORDER BY dea.date) AS total_vaccination
+FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` AS dea
+JOIN `my-first-data-analytics-98275.portfolio_covid_19.covid_vaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+AND vac.new_vaccinations IS NOT NULL
+ORDER BY 1, 2, 3;
+
+
+
+-- total population vaccination
+
+WITH popvsVac AS (
+  SELECT
+    dea.continent,
+    dea.location,
+    dea.date,
+    dea.population,
+    vac.new_vaccinations,
+    SUM(CAST(vac.new_vaccinations AS INT64)) OVER (PARTITION BY dea.location ORDER BY dea.date) AS total_vaccination
+  FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` AS dea
+  JOIN `my-first-data-analytics-98275.portfolio_covid_19.covid_vaccinations` AS vac
+  ON dea.location = vac.location
+  AND dea.date = vac.date
+  WHERE dea.continent IS NOT NULL
+  AND vac.new_vaccinations IS NOT NULL
+  ORDER BY 1, 2, 3
+)
+SELECT *
+FROM popvsVac;
+
+
+
+
+-- Create the temporary table
+CREATE TEMPORARY TABLE perPopulationVacinated AS
+SELECT
+  dea.continent,
+  dea.location,
+  dea.date,
+  dea.population,
+  vac.new_vaccinations,
+  SUM(CAST(vac.new_vaccinations AS INT64)) OVER (PARTITION BY dea.location ORDER BY dea.date) AS total_vaccination
+FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` AS dea
+JOIN `my-first-data-analytics-98275.portfolio_covid_19.covid_vaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+AND vac.new_vaccinations IS NOT NULL;
+
+-- Select from the temporary table and calculate the percentage
+SELECT *, (total_vaccination / population) * 100 AS percentage
+FROM perPopulationVacinated;
+
+
+-- Create a view for visualization
+CREATE OR REPLACE VIEW perPopulationVaccinated AS
+SELECT
+ SELECT
+  dea.continent,
+  dea.location,
+  dea.date,
+  dea.population,
+  vac.new_vaccinations,
+  SUM(CAST(vac.new_vaccinations AS INT64)) OVER (PARTITION BY dea.location ORDER BY dea.date) AS total_vaccination
+FROM `my-first-data-analytics-98275.portfolio_covid_19.covid_deaths` AS dea
+JOIN `my-first-data-analytics-98275.portfolio_covid_19.covid_vaccinations` AS vac
+ON dea.location = vac.location
+AND dea.date = vac.date
+WHERE dea.continent IS NOT NULL
+AND vac.new_vaccinations IS NOT NULL;
+
+-- Select from the temporary table and calculate the percentage
+SELECT *, (total_vaccination / population) * 100 AS percentage
+FROM perPopulationVacinated;
+
+
+
+
+
+
+
+
+
+
